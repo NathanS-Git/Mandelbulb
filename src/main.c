@@ -3,7 +3,7 @@
 #include <glad/glad.h>
 #include <SDL2/SDL.h>
 
-const int SCREEN_WIDTH = 1600;
+const int SCREEN_WIDTH = 900;
 const int SCREEN_HEIGHT = 900;
 
 // Read the contents of a file.

@@ -83,7 +83,7 @@ float trace(vec3 from, vec3 direction) {
     int steps;
 
     int MaximumRaySteps = 100;
-    float MinimumDistance = -0.1+u_mouse.x*0.001;
+    float MinimumDistance = 0.0001;
 
     for (steps=0; steps < MaximumRaySteps; steps++) {
         vec3 p = from + totalDistance * direction;
@@ -98,10 +98,8 @@ void main() {
 
     float aspect_ratio = u_resolution.x/u_resolution.y;
 
-    vec2 normalizedCoords = ((gl_FragCoord.xy/u_resolution.xy)*5.0)-2.5;
+    vec2 normalizedCoords = ((gl_FragCoord.xy/u_resolution.xy)*2.0)-1.0;
 
-
-    vec3 colour = vec3(trace(vec3(normalizedCoords, 0.0+u_mouse.y*0.01), vec3(1.0, 1.0, 0.0)));
-
+    vec3 colour = vec3(trace(vec3(normalizedCoords, -1.0+u_zoom), vec3(normalizedCoords, 1.0+u_zoom)));
     FragColour = vec4(colour, 1.0);
 }
