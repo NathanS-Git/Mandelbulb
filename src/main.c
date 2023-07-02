@@ -174,8 +174,8 @@ int main(int argc, char* args[]) {
             zoom = 0;
             zoom_rate = 0;
         }
-        abs_x += (3.0 / (1.0 + exp(zoom))) * x;
-        abs_y += (3.0 / (1.0 + exp(zoom))) * y;
+        abs_x += x;
+        abs_y += y;
 
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);

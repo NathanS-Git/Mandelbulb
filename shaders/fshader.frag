@@ -50,10 +50,24 @@ while( dot(z,z) <= smoothness*smoothness && iteration < max_iteration) { \
 }
 
 
+vec3 rotate_by_quaternion(vec4 q, vec3 v) {
+    return v+2.0*cross(q.xyz,cross(q.xyz, v) + q.w*v);
+}
+
+vec4 multiply_quaternions(vec4 q1, vec4 q2) {
+    vec4 q;
+    q.x = (q1.w * q2.x) + (q1.x * q2.w) + (q1.y * q2.z) - (q1.z * q2.y);
+    q.y = (q1.w * q2.y) - (q1.x * q2.z) + (q1.y * q2.w) + (q1.z * q2.x);
+    q.z = (q1.w * q2.z) + (q1.x * q2.y) - (q1.y * q2.x) + (q1.z * q2.w);
+    q.w = (q1.w * q2.w) - (q1.x * q2.x) - (q1.y * q2.y) - (q1.z * q2.z);
+    return q;
+}
+
+
 float DistanceEstimator(vec3 pos) {
     float Power = 8.0;
-    int Iterations = 64;
-    float Bailout = 50.0;
+    int Iterations = 100;
+    float Bailout = 3.0;
     
     vec3 z = pos;
     float dr = 1.0;
@@ -78,7 +92,7 @@ float DistanceEstimator(vec3 pos) {
     return 0.5*log(r)*r/dr;
 }
 
-float trace(vec3 from, vec3 direction) {
+float ray_march(vec3 from, vec3 direction) {
     float totalDistance = 0.0;
     int steps;
 
@@ -98,8 +112,19 @@ void main() {
 
     float aspect_ratio = u_resolution.x/u_resolution.y;
 
-    vec2 normalizedCoords = ((gl_FragCoord.xy/u_resolution.xy)*2.0)-1.0;
+    vec2 normalizedCoords = ((gl_FragCoord.xy/u_resolution.xy)*1.0)-0.5;
 
-    vec3 colour = vec3(trace(vec3(normalizedCoords, -1.0+u_zoom), vec3(normalizedCoords, 1.0+u_zoom)));
-    FragColour = vec4(colour, 1.0);
+    vec3 from = vec3(normalizedCoords*u_zoom*0.1, -2.0);
+    vec3 direction = vec3((normalizedCoords), 1.0);
+
+    vec4 quaternionY = vec4(cos(u_mouse.y/u_resolution.y/2), 0, 0, sin(u_mouse.y/u_resolution.y/2));
+    vec4 quaternionX = vec4(cos(u_mouse.x/u_resolution.x/2), 0, sin(u_mouse.x/u_resolution.x/2), 0);
+    vec4 quaternion = multiply_quaternions(quaternionX, quaternionY);
+
+
+    vec3 newFrom = rotate_by_quaternion(quaternion, from);
+    vec3 newDirection = rotate_by_quaternion(quaternion, direction);
+
+    float colour = ray_march(newFrom, newDirection);
+    FragColour = vec4(vec3(colour), 1.0);
 }
