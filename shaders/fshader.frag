@@ -6,42 +6,6 @@ uniform vec2 u_resolution;
 uniform vec2 u_mouse;
 uniform float u_zoom;
 
-// Complex multiply
-vec2 cmul(in vec2 c, in vec2 z) {
-    return vec2(c.x*z.x-c.y*z.y, c.x*z.y+c.y*z.x);
-}
-
-// Brings a complex number to an arbitrary power
-vec2 cpow(in vec2 c, in float p) {
-    float r = sqrt(c.x*c.x+c.y*c.y);
-    float theta = atan(c.y/c.x);
-    return pow(r,p)*vec2(cos(p*theta),sin(p*theta));
-}
-
-// Complex square
-vec2 csqr(in vec2 c) {
-    return cmul(c,c);
-}
-
-// Complex conjugate
-vec2 cconj(in vec2 c){
-    return c*vec2(1,-1);
-}
-
-
-// Fractal functions
-vec2 mandelbrot(in vec2 z, in vec2 c) {
-    return csqr(z)+c;
-}
-
-vec2 tricorn(in vec2 z, in vec2 c) {
-    return csqr(cconj(z))+c;
-}
-
-vec2 burning_ship(in vec2 z, in vec2 c) {
-    return vec2(z.x*z.x - z.y*z.y, 2.0*abs(z.x*z.y))+c;
-}
-
 
 #define fractal(function, z, c) \
 while( dot(z,z) <= smoothness*smoothness && iteration < max_iteration) { \
@@ -92,6 +56,44 @@ float DistanceEstimator(vec3 pos) {
     return 0.5*log(r)*r/dr;
 }
 
+void sphereFold(inout vec3 z, inout float dz) {
+    float fixedRadius2 = 1.0 * 1.0;
+    float minRadius2 = 0.5 * 0.5;
+    
+    float r2 = dot(z,z);
+    if (r2<minRadius2) {
+        float temp = (fixedRadius2/minRadius2);
+        z *= temp;
+        dz *= temp;
+    } else if (r2<fixedRadius2) {
+        float temp = (fixedRadius2/r2);
+        z *= temp;
+        dz *= temp;
+    }
+}
+
+void boxFold(inout vec3 z, inout float dz) {
+    float foldingLimit = 1.0;
+    z = clamp(z, -foldingLimit, foldingLimit) * 2.0 - z;
+}
+
+float DE(vec3 z) {
+    int Iterations = 64;
+    float Scale = 2.0;
+
+    vec3 offset = z;
+    float dr = 1.0;
+    for (int n=0; n< Iterations; n++) {
+        boxFold(z,dr);
+        sphereFold(z,dr);
+
+        z = Scale*z + offset;
+        dr = dr*abs(Scale)+1.0;
+    }
+    float r = length(z);
+    return r/abs(dr);
+}
+
 float ray_march(vec3 from, vec3 direction) {
     float totalDistance = 0.0;
     int steps;
@@ -114,7 +116,7 @@ void main() {
 
     vec2 normalizedCoords = ((gl_FragCoord.xy/u_resolution.xy)*1.0)-0.5;
 
-    vec3 from = vec3(normalizedCoords*u_zoom*0.1, -2.0);
+    vec3 from = vec3(normalizedCoords*(-u_zoom)*0.1, -2.0);
     vec3 direction = vec3((normalizedCoords), 1.0);
 
     vec4 quaternionY = vec4(cos(u_mouse.y/u_resolution.y/2), 0, 0, sin(u_mouse.y/u_resolution.y/2));
@@ -126,5 +128,5 @@ void main() {
     vec3 newDirection = rotate_by_quaternion(quaternion, direction);
 
     float colour = ray_march(newFrom, newDirection);
-    FragColour = vec4(vec3(colour), 1.0);
+    FragColour = vec4(vec3((sin(colour*1.0)*0.5)+0.5), 1.0);
 }
