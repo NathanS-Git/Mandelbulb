@@ -1,5 +1,5 @@
 #version 330 core
-layout(location = 0) out vec4 FragColour;
+layout(location = 0) out vec4 frag_colour;
 
 uniform float u_time;
 uniform vec2 u_resolution;
@@ -28,26 +28,26 @@ vec4 multiply_quaternions(vec4 q1, vec4 q2) {
 }
 
 
-float DistanceEstimator(vec3 pos) {
-    float Power = 8.0;
-    int Iterations = 100;
-    float Bailout = 3.0;
+float distance_estimator(vec3 pos) {
+    float power = 8.0;
+    int iterations = 64;
+    float bailout = 2.0;
     
     vec3 z = pos;
     float dr = 1.0;
     float r = 0.0;
 
-    for (int i = 0; i < Iterations; i++) {
+    for (int i = 0; i < iterations; i++) {
         r = length(z);
-        if (r>Bailout) break;
+        if (r>bailout) break;
 
         float theta = acos(z.z/r);
         float phi = atan(z.y,z.x);
-        dr = pow(r, Power-1.0)*Power*dr + 1.0;
+        dr = pow(r, power-1.0)*power*dr + 1.0;
 
-        float zr = pow(r, Power);
-        theta = theta*Power;
-        phi = phi*Power;
+        float zr = pow(r, power);
+        theta = theta*power;
+        phi = phi*power;
 
         z = zr*vec3(sin(theta)*cos(phi), sin(phi)*sin(theta), cos(theta));
         z += pos;
@@ -56,77 +56,76 @@ float DistanceEstimator(vec3 pos) {
     return 0.5*log(r)*r/dr;
 }
 
-void sphereFold(inout vec3 z, inout float dz) {
-    float fixedRadius2 = 1.0 * 1.0;
-    float minRadius2 = 0.5 * 0.5;
+void sphere_fold(inout vec3 z, inout float dz) {
+    float fixed_radius2 = 1.0 * 1.0;
+    float min_radius2 = 0.5 * 0.5;
     
     float r2 = dot(z,z);
-    if (r2<minRadius2) {
-        float temp = (fixedRadius2/minRadius2);
+    if (r2<min_radius2) {
+        float temp = (fixed_radius2/min_radius2);
         z *= temp;
         dz *= temp;
-    } else if (r2<fixedRadius2) {
-        float temp = (fixedRadius2/r2);
+    } else if (r2<fixed_radius2) {
+        float temp = (fixed_radius2/r2);
         z *= temp;
         dz *= temp;
     }
 }
 
-void boxFold(inout vec3 z, inout float dz) {
-    float foldingLimit = 1.0;
-    z = clamp(z, -foldingLimit, foldingLimit) * 2.0 - z;
+void box_fold(inout vec3 z, inout float dz) {
+    float folding_limit = 2.0;
+    z = clamp(z, -folding_limit, folding_limit) * 2.0 - z;
 }
 
-float DE(vec3 z) {
-    int Iterations = 64;
-    float Scale = 2.0;
+float de(vec3 z) {
+    int iterations = 64;
+    float scale = 2.0;
 
     vec3 offset = z;
     float dr = 1.0;
-    for (int n=0; n< Iterations; n++) {
-        boxFold(z,dr);
-        sphereFold(z,dr);
+    for (int n=0; n< iterations; n++) {
+        box_fold(z,dr);
+        sphere_fold(z,dr);
 
-        z = Scale*z + offset;
-        dr = dr*abs(Scale)+1.0;
+        z = scale*z + offset;
+        dr = dr*abs(scale)+1.0;
     }
     float r = length(z);
     return r/abs(dr);
 }
 
 float ray_march(vec3 from, vec3 direction) {
-    float totalDistance = 0.0;
+    float total_distance = 0.0;
     int steps;
 
-    int MaximumRaySteps = 100;
-    float MinimumDistance = 0.0001;
+    int maximum_ray_steps = 100;
+    float minimum_distance = 0.0001;
 
-    for (steps=0; steps < MaximumRaySteps; steps++) {
-        vec3 p = from + totalDistance * direction;
-        float dist = DistanceEstimator(p);
-        totalDistance += dist;
-        if (dist < MinimumDistance) break;
+    for (steps=0; steps < maximum_ray_steps; steps++) {
+        vec3 p = from + total_distance * direction;
+        float dist = distance_estimator(p);
+        total_distance += dist;
+        if (dist < minimum_distance) break;
     }
-    return 1.0-float(steps)/float(MaximumRaySteps);
+    return 1.0-float(steps)/float(maximum_ray_steps);
 }
 
 void main() {
 
     float aspect_ratio = u_resolution.x/u_resolution.y;
 
-    vec2 normalizedCoords = ((gl_FragCoord.xy/u_resolution.xy)*1.0)-0.5;
+    vec2 normalized_coords = (gl_FragCoord.xy/u_resolution.xy*vec2(aspect_ratio,1))-vec2(aspect_ratio/2,0.5);
 
-    vec3 from = vec3(normalizedCoords*(-u_zoom)*0.1, -2.0);
-    vec3 direction = vec3((normalizedCoords), 1.0);
+    vec3 from = vec3(normalized_coords*(-u_zoom)*0.1, -4.0+u_zoom*0.1);
+    vec3 direction = normalize(vec3(normalized_coords, 1.0))*1.0;
 
-    vec4 quaternionY = vec4(cos(u_mouse.y/u_resolution.y/2), 0, 0, sin(u_mouse.y/u_resolution.y/2));
-    vec4 quaternionX = vec4(cos(u_mouse.x/u_resolution.x/2), 0, sin(u_mouse.x/u_resolution.x/2), 0);
-    vec4 quaternion = multiply_quaternions(quaternionX, quaternionY);
+    vec4 quaternion_y = vec4(cos(u_mouse.y/u_resolution.y/2), 0, 0, sin(u_mouse.y/u_resolution.y/2));
+    vec4 quaternion_x = vec4(cos(u_mouse.x/u_resolution.x/2), 0, sin(u_mouse.x/u_resolution.x/2), 0);
+    vec4 quaternion = multiply_quaternions(quaternion_x, quaternion_y);
 
+    vec3 new_from = rotate_by_quaternion(quaternion, from);
+    vec3 new_direction = rotate_by_quaternion(quaternion, direction);
 
-    vec3 newFrom = rotate_by_quaternion(quaternion, from);
-    vec3 newDirection = rotate_by_quaternion(quaternion, direction);
-
-    float colour = ray_march(newFrom, newDirection);
-    FragColour = vec4(vec3((sin(colour*1.0)*0.5)+0.5), 1.0);
+    float colour = ray_march(new_from, new_direction);
+    frag_colour = vec4(vec3(colour), 1.0);
 }

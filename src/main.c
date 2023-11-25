@@ -170,8 +170,8 @@ int main(int argc, char* args[]) {
 
         SDL_GetRelativeMouseState(&x, &y);
         zoom += zoom_rate;
-        if (zoom < 0) {
-            zoom = 0;
+        if (zoom < -0.5) {
+            zoom = -0.5;
             zoom_rate = 0;
         }
         abs_x += x;
