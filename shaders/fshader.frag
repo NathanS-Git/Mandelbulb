@@ -7,13 +7,6 @@ uniform vec2 u_mouse;
 uniform float u_zoom;
 
 
-#define fractal(function, z, c) \
-while( dot(z,z) <= smoothness*smoothness && iteration < max_iteration) { \
-    z = function(z,c); \
-    iteration += 1; \
-}
-
-
 vec3 rotate_by_quaternion(vec4 q, vec3 v) {
     return v+2.0*cross(q.xyz,cross(q.xyz, v) + q.w*v);
 }
@@ -28,7 +21,7 @@ vec4 multiply_quaternions(vec4 q1, vec4 q2) {
 }
 
 
-float distance_estimator(vec3 pos) {
+float mandelbulb_distance_estimator(vec3 pos) {
     float power = 8.0;
     int iterations = 64;
     float bailout = 2.0;
@@ -61,11 +54,11 @@ void sphere_fold(inout vec3 z, inout float dz) {
     float min_radius2 = 0.5 * 0.5;
     
     float r2 = dot(z,z);
-    if (r2<min_radius2) {
+    if (r2 < min_radius2) {
         float temp = (fixed_radius2/min_radius2);
         z *= temp;
         dz *= temp;
-    } else if (r2<fixed_radius2) {
+    } else if (r2 <fixed_radius2) {
         float temp = (fixed_radius2/r2);
         z *= temp;
         dz *= temp;
@@ -73,13 +66,13 @@ void sphere_fold(inout vec3 z, inout float dz) {
 }
 
 void box_fold(inout vec3 z, inout float dz) {
-    float folding_limit = 2.0;
+    float folding_limit = 0.5;
     z = clamp(z, -folding_limit, folding_limit) * 2.0 - z;
 }
 
-float de(vec3 z) {
+float mandelbox_distance_estimator(vec3 z) {
     int iterations = 64;
-    float scale = 2.0;
+    float scale = 1.5;
 
     vec3 offset = z;
     float dr = 1.0;
@@ -103,20 +96,25 @@ float ray_march(vec3 from, vec3 direction) {
 
     for (steps=0; steps < maximum_ray_steps; steps++) {
         vec3 p = from + total_distance * direction;
-        float dist = distance_estimator(p);
+        float dist = mandelbulb_distance_estimator(p);
         total_distance += dist;
         if (dist < minimum_distance) break;
     }
-    return 1.0-float(steps)/float(maximum_ray_steps);
+
+    float ratio = float(steps)/float(maximum_ray_steps);
+
+    return 1.0-ratio;
 }
 
 void main() {
+
+    float camera_distance = 5.0;
 
     float aspect_ratio = u_resolution.x/u_resolution.y;
 
     vec2 normalized_coords = (gl_FragCoord.xy/u_resolution.xy*vec2(aspect_ratio,1))-vec2(aspect_ratio/2,0.5);
 
-    vec3 from = vec3(normalized_coords*(-u_zoom)*0.1, -4.0+u_zoom*0.1);
+    vec3 from = vec3(normalized_coords*(-u_zoom)*0.1, -camera_distance+u_zoom*0.1);
     vec3 direction = normalize(vec3(normalized_coords, 1.0))*1.0;
 
     vec4 quaternion_y = vec4(cos(u_mouse.y/u_resolution.y/2), 0, 0, sin(u_mouse.y/u_resolution.y/2));
