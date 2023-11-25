@@ -20,5 +20,5 @@ Here is the Mandelbox, lurking in the dark
 
 
 ## References / Inspired By
-The incredible blog posts ![Distance Estimated Fractals](https://blog.hvidtfeldts.net/index.php/2011/06/distance-estimated-3d-fractals-part-i/)
+The incredible blog posts [Distance Estimated Fractals](https://blog.hvidtfeldts.net/index.php/2011/06/distance-estimated-3d-fractals-part-i/)
 
